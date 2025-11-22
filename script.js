@@ -2792,18 +2792,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyCY3r6YelbzubGJvw_dv5ZMM-7bZ7ebsw0",
-  authDomain: "saniapp-7b4be.firebaseapp.com",
-  databaseURL: "https://saniapp-7b4be-default-rtdb.firebaseio.com",
-  projectId: "saniapp-7b4be",
-  storageBucket: "saniapp-7b4be.firebasestorage.app",
-  messagingSenderId: "928447805197",
-  appId: "1:928447805197:web:c83681948e2e52e15da244",
-  measurementId: "G-FTWSNVGVY1"
+  apiKey: "AIzaSyCcLKJ7SAcka3Hr025qf1cO_5NJmwvfQqo",
+  authDomain: "noor-allocation.firebaseapp.com",
+  databaseURL: "https://noor-allocation-default-rtdb.firebaseio.com",
+  projectId: "noor-allocation",
+  storageBucket: "noor-allocation.firebasestorage.app",
+  messagingSenderId: "883380662538",
+  appId: "1:883380662538:web:205d75b5ef9b9405ab0af3",
+  measurementId: "G-Z87Y1JEK6E"
 };
 // example: put this near your firebaseConfig object
-const DATABASE_URL = "https://saniapp-7b4be-default-rtdb.firebaseio.com"; // <-- replace with your Realtime DB URL (no trailing slash)
+const DATABASE_URL = "https://noor-allocation-default-rtdb.firebaseio.com"; // <-- replace with your Realtime DB URL (no trailing slash)
 
 
 
