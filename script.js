@@ -2792,19 +2792,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyCcLKJ7SAcka3Hr025qf1cO_5NJmwvfQqo",
-  authDomain: "noor-allocation.firebaseapp.com",
-  databaseURL: "https://noor-allocation-default-rtdb.firebaseio.com",
-  projectId: "noor-allocation",
-  storageBucket: "noor-allocation.firebasestorage.app",
-  messagingSenderId: "883380662538",
-  appId: "1:883380662538:web:205d75b5ef9b9405ab0af3",
-  measurementId: "G-Z87Y1JEK6E"
+  apiKey: "AIzaSyBapNucfB35p0NTHZdXKGs0dy2YGGfGuqQ",
+  authDomain: "new-data-f0a04.firebaseapp.com",
+  projectId: "new-data-f0a04",
+  storageBucket: "new-data-f0a04.firebasestorage.app",
+  messagingSenderId: "861640908622",
+  appId: "1:861640908622:web:30516fa7f18165f572c81f",
+  measurementId: "G-DVK6E3T0TC"
 };
 // example: put this near your firebaseConfig object
-const DATABASE_URL = "https://noor-allocation-default-rtdb.firebaseio.com"; // <-- replace with your Realtime DB URL (no trailing slash)
+const DATABASE_URL = "https://new-data-f0a04-default-rtdb.firebaseio.com"; // <-- replace with your Realtime DB URL (no trailing slash)
 
 
 
