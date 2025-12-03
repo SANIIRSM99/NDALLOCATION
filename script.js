@@ -844,6 +844,7 @@ function renderInvoiceTable() {
                                 <option value="green">✅ Completed</option>
                                 <option value="red">🔴 Red Zone</option>
                                 <option value="normal">⏳ Pending</option>
+                                <option value="nonProductive">🚫 Non Productive</option>
                                 <option value="top10">🏆 Top 10 Customers</option>
                                 <option value="itemSummary">📊 Item Summary</option>
                             </select>
@@ -1055,7 +1056,17 @@ function renderInvoiceTable() {
                 if(remainingQty<0){ rowClass="bg-red-500 text-white"; statusType="red"; }
                 else if(remainingQty===0 && achievedQty>0){ rowClass="bg-green-500 text-white"; statusType="green"; }
 
-                if(selectedFilter!=="all" && selectedFilter!=="top10" && selectedFilter!==statusType) return;
+                // --- Non-Productive Filter ---
+if (selectedFilter === "nonProductive" && anyAchieved) return;
+
+// --- Other Status Filters ---
+if (
+    selectedFilter !== "all" &&
+    selectedFilter !== "top10" &&
+    selectedFilter !== "nonProductive" &&     // allow nonProductive
+    selectedFilter !== statusType
+) return;
+
                 visibleItems.add(item);
 
                 rowsHtml+=`<tr class="${rowClass} hover:bg-indigo-100 transition text-xs sm:text-sm">
@@ -1127,6 +1138,13 @@ document.getElementById("overallBox").lastElementChild.innerText =
     const itemFilter = document.getElementById("itemFilter");
     if(itemFilter){
         const currentValue = itemFilter.value;
+// If Non Productive filter → no items should appear  
+if (selectedFilter === "nonProductive") {
+    itemFilter.innerHTML = `<option value="all">📦 All Items</option>`;
+    itemFilter.value = "all";
+    return;
+}
+
         const sortedItems = Array.from(visibleItems).sort();
         itemFilter.innerHTML = `<option value="all">📦 All Items</option>` + sortedItems.map(it=>`<option value="${it}">${it}</option>`).join("");
         if([...sortedItems,"all"].includes(currentValue)) itemFilter.value=currentValue;
@@ -1305,7 +1323,19 @@ function showFilteredPopup() {
                     statusType = "green";
                 }
 
-                if (selectedStatus !== "all" && selectedStatus !== "top10" && selectedStatus !== statusType) return;
+                // 🚫 Non-Productive Filter → show only customers where achieved = 0
+if (selectedStatus === "nonProductive") {
+    if (achieved > 0) return;  // if any achievement → skip row
+}
+else {
+    // Normal Filters (all, top10, red, green)
+    if (
+        selectedStatus !== "all" &&
+        selectedStatus !== "top10" &&
+        selectedStatus !== statusType
+    ) return;
+}
+
 
                const value = invoices
     .filter(inv =>
@@ -1387,6 +1417,7 @@ popupRows += `<tr class="${rowClass} hover:bg-indigo-100 transition text-xs sm:t
 
     popup.classList.remove("hidden");
 }
+
 
 
 
