@@ -2895,16 +2895,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyBapNucfB35p0NTHZdXKGs0dy2YGGfGuqQ",
-  authDomain: "new-data-f0a04.firebaseapp.com",
-  projectId: "new-data-f0a04",
-  storageBucket: "new-data-f0a04.firebasestorage.app",
-  messagingSenderId: "861640908622",
-  appId: "1:861640908622:web:30516fa7f18165f572c81f",
-  measurementId: "G-DVK6E3T0TC"
+  apiKey: "AIzaSyAIsnRGXu0QwakL-NOyClyePU87f6N9Gt4",
+  authDomain: "all-data-996b6.firebaseapp.com",
+  databaseURL: "https://all-data-996b6-default-rtdb.firebaseio.com",
+  projectId: "all-data-996b6",
+  storageBucket: "all-data-996b6.firebasestorage.app",
+  messagingSenderId: "708188152366",
+  appId: "1:708188152366:web:79280e5f2f1f8f792775bf",
+  measurementId: "G-339J0ZXR2V"
 };
 // example: put this near your firebaseConfig object
-const DATABASE_URL = "https://new-data-f0a04-default-rtdb.firebaseio.com"; // <-- replace with your Realtime DB URL (no trailing slash)
+const DATABASE_URL = "https://all-data-996b6-default-rtdb.firebaseio.com"; // <-- replace with your Realtime DB URL (no trailing slash)
 
 
 
