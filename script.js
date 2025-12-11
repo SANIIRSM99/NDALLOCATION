@@ -3472,54 +3472,6 @@ async function syncUserDataFromFirebase(onDone) {
 /* ================================================================
    ✅ END Robust Sync System
 ================================================================ */
-function calculateSmartPerformance() {
-    let totalCustomerScore = 0;
-    let customerCount = 0;
-
-    Object.entries(customerTargets).forEach(([customerCode, customer]) => {
-        const items = customer.items;
-        const totalItems = Object.keys(items).length;
-        if (totalItems === 0) return;
-
-        let totalTargetQty = 0;
-        let totalAchievedQty = 0;
-        let completedItems = 0;
-
-        Object.entries(items).forEach(([item, targetQty]) => {
-            const achievedQty = invoices
-                .filter(inv =>
-                    inv.customerCode?.toUpperCase() === customerCode.toUpperCase() &&
-                    inv.item?.toUpperCase() === item.toUpperCase()
-                )
-                .reduce((sum, inv) => sum + Number(inv.quantity || 0), 0);
-
-            totalTargetQty += Number(targetQty);
-            totalAchievedQty += achievedQty;
-
-            if (achievedQty >= targetQty) completedItems++;
-        });
-
-        // --- Achieved% ---
-        const achievedPercent = totalTargetQty > 0
-            ? (totalAchievedQty / totalTargetQty) * 100
-            : 0;
-
-        // --- Item Completion Score ---
-        const itemCompletionPercent = (completedItems / totalItems) * 100;
-
-        // --- FINAL SMART SCORE (70% + 30%) ---
-        const finalScore = (achievedPercent * 0.7) + (itemCompletionPercent * 0.3);
-
-        totalCustomerScore += finalScore;
-        customerCount++;
-    });
-
-    // --- RETURN OVERALL PERFORMANCE ---
-    return customerCount > 0
-        ? (totalCustomerScore / customerCount).toFixed(1)
-        : 0;
-}
-
 function openCustomerPopup(customerCode) {
 
     const customer = customerTargets[customerCode];
@@ -3528,10 +3480,65 @@ function openCustomerPopup(customerCode) {
         return;
     }
 
-    let rows = "";
-    const items = Object.keys(customer.items);
+    // --- Find Customer Level (same logic from Allocation Page) ---
+    const allCustomers = Object.entries(customerTargets).map(([code, data]) => ({
+        code,
+        name: data.name || "Unknown",
+        itemsCount: Object.keys(data.items || {}).length
+    }));
 
-    items.forEach(item => {
+    // Group customers by items count
+    const itemCountGroups = {};
+    allCustomers.forEach(cust => {
+        const count = cust.itemsCount;
+        if (!itemCountGroups[count]) itemCountGroups[count] = [];
+        itemCountGroups[count].push(cust);
+    });
+
+    // Sort groups highest → lowest
+    const sortedGroups = Object.keys(itemCountGroups)
+        .map(Number)
+        .sort((a, b) => b - a)
+        .map(count => itemCountGroups[count]);
+
+    // Assign levels
+    sortedGroups.forEach((group, index) => {
+        let level, color;
+        if (index === 0) { level = "🥇 Golden"; color = "#FFD700"; }
+        else if (index === 1) { level = "🥈 Silver"; color = "#C0C0C0"; }
+        else if (index === 2) { level = "🥉 Bronze"; color = "#CD7F32"; }
+        else {
+            level = `Level ${index - 2}`;
+            const shades = ["#E0FFFF","#B0E0E6","#ADD8E6","#87CEEB","#6495ED","#4169E1","#0000CD"];
+            color = shades[(index - 3) % shades.length];
+        }
+        group.forEach(c => { c.level = level; c.levelColor = color; });
+    });
+
+    const ranked = sortedGroups.flat();
+    const rankInfo = ranked.find(c => c.code === customerCode);
+
+    const customerLevel = rankInfo ? rankInfo.level : "";
+    const levelColor = rankInfo ? rankInfo.levelColor : "#555";
+
+    // --- Check Non-Productive (achieve = 0?) ---
+    const allItems = Object.keys(customer.items);
+    let isNonProductive = true;
+    allItems.forEach(item => {
+        const inv = invoices.filter(x =>
+            x.customerCode?.toUpperCase() === customerCode &&
+            x.item?.toUpperCase() === item
+        );
+        const achieved = inv.reduce((a, b) => a + Number(b.quantity || 0), 0);
+        if (achieved > 0) isNonProductive = false;
+    });
+
+    // icon
+    const npIcon = isNonProductive ? "🚫 Non-Productive" : "";
+
+    // --- Build Items Table ---
+    let rows = "";
+    allItems.forEach(item => {
         const target = Number(customer.items[item]);
         const inv = invoices.filter(x =>
             x.customerCode?.toUpperCase() === customerCode &&
@@ -3540,9 +3547,13 @@ function openCustomerPopup(customerCode) {
         const achieved = inv.reduce((a, b) => a + Number(b.quantity || 0), 0);
         const remaining = target - achieved;
         const achievedValue = inv.reduce((a, b) => a + (Number(b.quantity) * Number(b.rate)), 0);
-        
+
+        let rowColor = "";
+        if (remaining < 0) rowColor = "background:#dc2626;color:white;";
+        else if (achieved >= target) rowColor = "background:#16a34a;color:white;";
+
         rows += `
-            <tr>
+            <tr style="${rowColor}">
                 <td class="border p-2">${item}</td>
                 <td class="border p-2">${target}</td>
                 <td class="border p-2">${achieved}</td>
@@ -3552,20 +3563,31 @@ function openCustomerPopup(customerCode) {
         `;
     });
 
+    // --- Final Popup HTML (same design as allocation) ---
     const popupHtml = `
         <div id="nonProductivePopup" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-            <div class="bg-white w-11/12 md:w-2/3 lg:w-1/2 rounded-lg shadow-lg p-5">
+            <div class="bg-white w-11/12 md:w-2/3 lg:w-1/2 rounded-xl shadow-2xl p-6">
 
-                <h2 class="text-xl font-bold mb-3 text-center">
-                    🚫 Non Productive Customer
-                </h2>
+                <!-- HEADER LIKE ALLOCATION -->
+                <div class="text-center mb-4">
+                    <p class="text-sm font-bold px-3 py-1 inline-block rounded-full"
+                       style="background:${levelColor};color:black;">
+                        ${customerLevel}
+                    </p>
+                    <h2 class="text-xl font-extrabold mt-2">${customer.name}</h2>
+                    <p class="text-gray-600">${customer.city} — ${customerCode}</p>
 
-                <p class="text-center font-semibold mb-1">${customer.name}</p>
-                <p class="text-center text-sm text-gray-600 mb-3">${customer.city} — ${customerCode}</p>
+                    ${isNonProductive ? `
+                        <p class="text-red-600 font-bold mt-1 text-lg">
+                            🚫 Non-Productive Customer
+                        </p>
+                    `: ''}
+                </div>
 
+                <!-- TABLE -->
                 <div class="max-h-80 overflow-auto border rounded">
                     <table class="w-full text-sm border-collapse">
-                        <thead class="bg-gray-200">
+                        <thead class="bg-gray-200 sticky top-0">
                             <tr>
                                 <th class="border p-2">Item</th>
                                 <th class="border p-2">Target</th>
@@ -3580,7 +3602,7 @@ function openCustomerPopup(customerCode) {
 
                 <div class="text-center mt-4">
                     <button onclick="document.getElementById('nonProductivePopup').remove()"
-                        class="bg-red-600 text-white px-5 py-2 rounded">
+                        class="bg-red-600 text-white px-6 py-2 rounded-lg">
                         Close
                     </button>
                 </div>
