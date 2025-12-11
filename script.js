@@ -1500,42 +1500,79 @@ popupRows += `<tr class="${rowClass} hover:bg-indigo-100 transition text-xs sm:t
 
 
 
-function renderAllocationTables(customerCode = null) {
-    const tablesContainer = document.getElementById('allocationTables');
-    if (!tablesContainer) {
-        console.error('allocationTables element not found');
+function renderInvoiceTable() {
+    const tbody = document.getElementById('invoiceTableBody');
+    const thead = document.getElementById('invoiceTableHead');
+    if (!tbody) {
+        console.error('invoiceTableBody element not found');
         return;
     }
 
-    if (customerCode === lastRenderedCustomerCode) {
-        console.log('Skipping render: same customerCode already rendered:', customerCode);
-        return;
+    // --- Add filters only once ---
+    if (thead && !document.getElementById("statusFilter")) {
+        const filterRow = document.createElement("tr");
+        filterRow.innerHTML = `
+            <th colspan="9" class="p-0">
+                <div class="sticky top-0 z-20 bg-white border-b shadow-md">
+                    <div class="p-2 bg-white">
+                        <div class="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-2 sm:gap-4 mb-2">
+                            <label class="font-bold">Filter by Status:</label>
+                            <select id="statusFilter" class="w-full sm:w-auto border p-1 rounded text-sm">
+                                <option value="all">🌍 All</option>
+                                <option value="green">✅ Completed</option>
+                                <option value="red">🔴 Red Zone</option>
+                                <option value="normal">⏳ Pending</option>
+                                <option value="nonProductive">🚫 Non Productive</option>
+                                <option value="top10">🏆 Top 10 Customers</option>
+                                <option value="itemSummary">📊 Item Summary</option>
+                            </select>
+                            <label class="font-bold">Filter by Item:</label>
+                            <select id="itemFilter" class="w-full sm:w-auto border p-1 rounded text-sm">
+                                <option value="all">📦 All Items</option>
+                            </select>
+                            <label class="font-bold">Filter by Rank:</label>
+                            <select id="rankFilter" class="w-full sm:w-auto border p-1 rounded text-sm">
+                                <option value="all">🏅 All Ranks</option>
+                                <option value="Golden">🥇 Golden</option>
+                                <option value="Silver">🥈 Silver</option>
+                                <option value="Bronze">🥉 Bronze</option>
+                                <option value="Level 1">Level 1</option>
+                                <option value="Level 2">Level 2</option>
+                                <option value="Level 3">Level 3</option>
+                                <option value="Level 4">Level 4</option>
+                                <option value="Level 5">Level 5</option>
+                                <option value="Level 6">Level 6</option>
+                                <option value="Level 7">Level 7</option>
+                                <option value="Level 8">Level 8</option>
+                                <option value="Level 9">Level 9</option>
+                                <option value="Level 10">Level 10</option>
+                                <option value="Level 15">Level 15</option>
+                                 <option value="Level 20">Level 20</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </th>
+        `;
+        thead.prepend(filterRow);
+
+        document.getElementById("statusFilter").addEventListener("change", renderInvoiceTable);
+        document.getElementById("itemFilter").addEventListener("change", renderInvoiceTable);
+        document.getElementById("rankFilter").addEventListener("change", renderInvoiceTable);
     }
 
-    tablesContainer.innerHTML = '';
-    lastRenderedCustomerCode = customerCode;
-    console.log('Rendering allocation table for customerCode:', customerCode);
+    const selectedFilter = document.getElementById("statusFilter")?.value || "all";
+    const selectedItem = document.getElementById("itemFilter")?.value || "all";
+    const selectedRank = document.getElementById("rankFilter")?.value || "all";
 
-    if (!customerCode) {
-        tablesContainer.innerHTML = '<p class="text-center text-gray-500">Please search for a customer to view dashboard.</p>';
-        return;
-    }
-
-    const customer = customerTargets[customerCode];
-    if (!customer) {
-        tablesContainer.innerHTML = '<p class="text-center text-gray-500">Customer not found.</p>';
-        console.error('Customer not found for allocation:', customerCode);
-        return;
-    }
-
-    // ✅ Calculate total items for each customer (for ranking)
+    // --- Calculate customer ranks based on item count groups ---
     const allCustomers = Object.entries(customerTargets).map(([code, data]) => ({
         code,
         name: data.name || "Unknown",
         itemsCount: Object.keys(data.items || {}).length
     }));
 
-    // ✅ Group customers by itemsCount
+    // Group customers by itemsCount
     const itemCountGroups = {};
     allCustomers.forEach(cust => {
         const count = cust.itemsCount;
@@ -1543,39 +1580,33 @@ function renderAllocationTables(customerCode = null) {
         itemCountGroups[count].push(cust);
     });
 
-    // ✅ Sort groups by itemsCount in descending order
+    // Sort groups by itemsCount in descending order
     const sortedGroups = Object.keys(itemCountGroups)
         .map(Number)
         .sort((a, b) => b - a)
         .map(count => itemCountGroups[count]);
 
-    // ✅ Assign rank levels to groups
+    // Assign levels to groups
     sortedGroups.forEach((group, index) => {
-        let level, levelColor;
+        let level;
         if (index === 0) {
-            level = "🥇 Golden";
-            levelColor = "#FFD700";
+            level = "Golden";
         } else if (index === 1) {
-            level = "🥈 Silver";
-            levelColor = "#C0C0C0";
+            level = "Silver";
         } else if (index === 2) {
-            level = "🥉 Bronze";
-            levelColor = "#CD7F32";
+            level = "Bronze";
         } else {
             level = `Level ${index - 2}`;
-            const shades = ["#E0FFFF", "#B0E0E6", "#ADD8E6", "#87CEEB", "#6495ED", "#4169E1", "#0000CD"];
-            levelColor = shades[(index - 3) % shades.length];
         }
         group.forEach(cust => {
             cust.level = level;
-            cust.levelColor = levelColor;
         });
     });
 
-    // ✅ Flatten back to allCustomers for finding rank info
+    // Flatten back to allCustomers for filtering
     const rankedCustomers = sortedGroups.flat();
 
-    // ✅ Debug: Log customer ranks
+    // --- Debug: Log customer ranks ---
     console.log('Customer Ranks:', rankedCustomers.map(c => ({
         code: c.code,
         name: c.name,
@@ -1583,175 +1614,566 @@ function renderAllocationTables(customerCode = null) {
         level: c.level
     })));
 
-    // ✅ Find current customer's rank info
-    const rankInfo = rankedCustomers.find(c => c.code === customerCode);
-    const customerLevel = rankInfo ? rankInfo.level : "";
-    const levelColor = rankInfo ? rankInfo.levelColor : "#888";
+    // --- Top 10 customers by totalTarget (QTY) ---
+    const customerTotals = Object.entries(customerTargets).map(([code, cust]) => {
+        const totalTargetQty = Object.values(cust.items).reduce((a, b) => a + Number(b), 0);
+        return { code, name: cust.name || code, totalTargetQty };
+    });
+    const top10Customers = customerTotals.sort((a,b)=>b.totalTargetQty-a.totalTargetQty).slice(0,10).map(c=>c.code);
 
-    // --- Table Calculation ---
     let rowsHtml = '';
-    let totalTarget = 0, totalAchieved = 0, totalRemaining = 0, totalAchievedValue = 0;
-    let totalItems = 0, nonProductive = 0, completed = 0, progress = 0;
-    const zeroAchieveItems = [];
+    let visibleItems = new Set();
+    let zeroAchieveCustomers = [];
 
-    const sortedItems = Object.keys(customer.items).sort((a, b) => a.localeCompare(b));
+    // --- Summary counters ---
+    let totalCustomers=0, nonProductive=0, completed=0, progress=0;
+    let overallAchievedValue=0, overallTargetValue=0, overallRemainingValue=0;
+    let overallAchievedQty=0, overallTargetQty=0;
 
-    sortedItems.forEach(item => {
-        const target = Number(customer.items[item]);
-        const matchingInvoices = invoices.filter(inv =>
-            inv &&
-            inv.customerCode?.toUpperCase() === customerCode.toUpperCase() &&
-            inv.item?.toUpperCase() === item.toUpperCase() &&
-            !isNaN(Number(inv.quantity)) &&
-            !isNaN(Number(inv.rate))
-        );
+    const customerShades = ["bg-gray-50","bg-blue-50","bg-purple-50","bg-pink-50","bg-yellow-50","bg-teal-50"];
+    let customerIndex = 0;
 
-        const achieved = matchingInvoices.reduce((sum, inv) => sum + Number(inv.quantity), 0);
-        const achievedValue = matchingInvoices.reduce((sum, inv) => sum + (Number(inv.quantity) * Number(inv.rate)), 0);
-        const cappedAchieved = Math.min(achieved, target);
-        const remaining = target - achieved;
+    // --- Item summary (QTY-based) ---
+    let itemSummary = {};
+    Object.entries(customerTargets).forEach(([customerCode, customer]) => {
+        Object.entries(customer.items).forEach(([item, targetQty]) => {
+            if (!itemSummary[item]) itemSummary[item] = { totalTargetQty:0, totalAchievedQty:0, totalRemainingQty:0, totalValue:0, customerCount:0 };
 
-        totalTarget += target;
-        totalAchieved += cappedAchieved;
-        totalRemaining += Math.max(remaining, 0);
-        totalAchievedValue += achievedValue;
-        totalItems++;
+            const matchingInvoices = invoices.filter(inv =>
+                inv.customerCode?.toUpperCase() === customerCode.toUpperCase() &&
+                inv.item?.toUpperCase() === item.toUpperCase()
+            );
 
-        let rowStyle = "";
-        if (remaining < 0) {
-            rowStyle = "background-color: #dc2626; color: white;";
-        } else if (achieved >= target) {
-            rowStyle = "background-color: #16a34a; color: white;";
-        } else if (achieved > 0) {
-            const percent = Math.min((achieved / target) * 100, 100);
-            rowStyle = `
-                background: linear-gradient(
-                    to right,
-                    #16a34a ${percent}%,
-                    #60a5fa ${percent}%
-                );
-                color: white;
-                transition: background 0.6s ease;
-            `;
-        }
+            const achievedQty = matchingInvoices.reduce((sum, inv) => sum + Number(inv.quantity || 0), 0);
+            const achievedValue = matchingInvoices.reduce((sum, inv) => sum + (Number(inv.quantity || 0) * Number(inv.rate || 0)), 0);
 
-        if (achieved === 0) {
-            nonProductive++;
-            zeroAchieveItems.push(item);
-        } else if (achieved >= target) {
-            completed++;
-        } else {
-            progress++;
-        }
-
-        rowsHtml += `<tr style="${rowStyle}">
-            <td class="border p-2">${item?.trim() || ''}</td>
-            <td class="border p-2">${target.toLocaleString()}</td>
-            <td class="border p-2">${achieved.toLocaleString()}</td>
-            <td class="border p-2">${remaining.toLocaleString()}</td>
-            <td class="border p-2 font-bold">${achievedValue.toLocaleString()}</td>
-        </tr>`;
+            itemSummary[item].totalTargetQty += Number(targetQty);
+            itemSummary[item].totalAchievedQty += achievedQty;
+            itemSummary[item].totalRemainingQty += (Number(targetQty) - achievedQty);
+            itemSummary[item].totalValue += achievedValue;
+            itemSummary[item].customerCount += 1;
+        });
     });
 
-    if (!rowsHtml) {
-        rowsHtml = '<tr><td colspan="5" class="p-2 text-center">No items for this customer.</td></tr>';
+    if (selectedFilter === "itemSummary") {
+        // --- Render Item Summary Table (QTY-based) ---
+        Object.entries(itemSummary).forEach(([item, data]) => {
+            if (selectedItem !== "all" && selectedItem !== item) return;
+            const perc = data.totalTargetQty>0?((data.totalAchievedQty/data.totalTargetQty)*100).toFixed(1):0;
+            let rowClass = "bg-gray-50";
+            if(data.totalRemainingQty<0) rowClass="bg-red-500 text-white";
+            else if(data.totalRemainingQty===0 && data.totalAchievedQty>0) rowClass="bg-green-500 text-white";
+
+            rowsHtml += `<tr class="${rowClass} hover:bg-indigo-100 transition text-xs sm:text-sm">
+                <td class="border p-1 sm:p-2"></td>
+                <td class="border p-1 sm:p-2"></td>
+                <td class="border p-1 sm:p-2">${data.customerCount} Customers</td>
+                <td class="border p-1 sm:p-2">${item}</td>
+                <td class="border p-1 sm:p-2">${data.totalTargetQty.toLocaleString()}</td>
+                <td class="border p-1 sm:p-2">${data.totalAchievedQty.toLocaleString()}</td>
+                <td class="border p-1 sm:p-2">${data.totalRemainingQty.toLocaleString()}</td>
+                <td class="border p-1 sm:p-2 font-bold">${perc}%</td>
+                <td class="border p-1 sm:p-2 font-bold">${data.totalValue.toLocaleString()}</td>
+            </tr>`;
+            visibleItems.add(item);
+        });
+    } else {
+        // --- Customer Table Rendering (QTY-based) ---
+        Object.entries(customerTargets).forEach(([customerCode, customer]) => {
+            // --- Apply rank filter ---
+            const rankInfo = rankedCustomers.find(c => c.code === customerCode);
+            if (!rankInfo) {
+                console.warn(`No rank info found for customer: ${customerCode}`);
+                return;
+            }
+            if (selectedRank !== "all" && rankInfo.level !== selectedRank) return;
+
+            if(selectedFilter==="top10" && !top10Customers.includes(customerCode)) return;
+
+            totalCustomers++;
+            const customerShade = customerShades[customerIndex % customerShades.length];
+            customerIndex++;
+
+            let allCompleted=true, anyAchieved=false;
+
+            Object.entries(customer.items).forEach(([item, targetQty]) => {
+                if(selectedItem!=="all" && selectedItem!==item) return;
+
+                const matchingInvoices = invoices.filter(inv =>
+                    inv.customerCode?.toUpperCase() === customerCode.toUpperCase() &&
+                    inv.item?.toUpperCase() === item.toUpperCase()
+                );
+
+                const achievedQty = matchingInvoices.reduce((sum, inv)=>sum+Number(inv.quantity||0),0);
+                const achievedValue = matchingInvoices.reduce((sum, inv)=>sum+(Number(inv.quantity||0)*Number(inv.rate||0)),0);
+
+                let avgRate = 0;
+                if(matchingInvoices.length>0){
+                    avgRate = matchingInvoices.reduce((s,inv)=>s+Number(inv.rate||0),0) / matchingInvoices.length;
+                }
+
+                const targetQtyNum = Number(targetQty);
+                const remainingQty = targetQtyNum - achievedQty;
+                const perc = targetQtyNum>0?((achievedQty/targetQtyNum)*100).toFixed(1):0;
+
+                overallAchievedQty += achievedQty;
+                overallTargetQty += targetQtyNum;
+
+                const targetValue = targetQtyNum * avgRate;
+                const remainingValue = targetValue - achievedValue;
+
+                overallAchievedValue += achievedValue;
+                overallTargetValue += targetValue;
+                overallRemainingValue += remainingValue;
+
+                if(achievedQty<targetQtyNum) allCompleted=false;
+                if(achievedQty>0) anyAchieved=true;
+
+                let rowClass = customerShade;
+                let statusType="normal";
+                if(remainingQty<0){ rowClass="bg-red-500 text-white"; statusType="red"; }
+                else if(remainingQty===0 && achievedQty>0){ rowClass="bg-green-500 text-white"; statusType="green"; }
+
+                // --- Non-Productive Filter ---
+if (selectedFilter === "nonProductive" && anyAchieved) return;
+
+// --- Other Status Filters ---
+if (
+    selectedFilter !== "all" &&
+    selectedFilter !== "top10" &&
+    selectedFilter !== "nonProductive" &&     // allow nonProductive
+    selectedFilter !== statusType
+) return;
+
+                visibleItems.add(item);
+
+                rowsHtml+=`<tr class="${rowClass} hover:bg-indigo-100 transition text-xs sm:text-sm">
+                    <td class="border p-1 sm:p-2">${customer.city||''}</td>
+                    <td class="border p-1 sm:p-2">${customerCode}</td>
+                    <td class="border p-1 sm:p-2">${customer.name||''} (${rankInfo.level})</td>
+                    <td class="border p-1 sm:p-2">${item}</td>
+                    <td class="border p-1 sm:p-2">${targetQtyNum.toLocaleString()}</td>
+                    <td class="border p-1 sm:p-2">${achievedQty.toLocaleString()}</td>
+                    <td class="border p-1 sm:p-2">${remainingQty.toLocaleString()}</td>
+                    <td class="border p-1 sm:p-2 font-bold">${perc}%</td>
+                    <td class="border p-1 sm:p-2 font-bold">${achievedValue.toLocaleString()}</td>
+                </tr>`;
+            });
+
+            if(!anyAchieved) zeroAchieveCustomers.push({name:customer.name?.trim()||customerCode, code:customerCode});
+            if(!anyAchieved) nonProductive++;
+            else if(allCompleted) completed++;
+            else progress++;
+        });
     }
 
-    const overallPercent = totalTarget > 0 ? ((totalAchieved / totalTarget) * 100).toFixed(1) : 0;
+    if(!rowsHtml) rowsHtml='<tr><td colspan="9" class="p-2 text-center">No invoices available.</td></tr>';
+    tbody.innerHTML = rowsHtml;
 
-    // --- Final HTML Output ---
-    tablesContainer.innerHTML = `
-        <!-- Header -->
-        <div class="mb-6 text-center p-6 rounded-2xl shadow-lg bg-gradient-to-r from-purple-700 via-purple-800 to-gray-900">
-            <div class="flex justify-between items-center">
-                <p class="text-sm font-bold px-3 py-1 rounded-full text-black" style="background-color:${levelColor}">
-                    ${customerLevel}
-                </p>
-                <h2 class="text-lg font-extrabold text-white drop-shadow-lg flex-grow text-center">📊 Customer Dashboard</h2>
-                <span></span>
-            </div>
-            <p class="text-3xl font-extrabold text-yellow-400 drop-shadow-lg mt-2">${customer.name || 'Unknown Name'}</p>
-            <p class="text-gray-300 text-sm mt-1">${customer.city || 'Unknown City'} • ${customerCode}</p>
-        </div>
+    // --- Summary boxes (Dashboard) ---
+    document.getElementById("totalCustomersBox").lastElementChild.innerText = totalCustomers;
+    document.getElementById("nonProductiveBox").lastElementChild.innerText = nonProductive;
+    document.getElementById("progressBox").lastElementChild.innerText = progress;
+    document.getElementById("completedBox").lastElementChild.innerText = completed;
 
-        <!-- KPI Cards -->
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-            <div class="p-5 rounded-2xl shadow-lg text-center bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 transform hover:-translate-y-1 transition duration-300">
-                <h3 class="text-lg font-bold text-blue-700">📦 Total Items</h3>
-                <p class="text-3xl font-extrabold text-blue-900 mt-2">${totalItems}</p>
-            </div>
-            <div class="p-5 rounded-2xl shadow-lg text-center bg-gradient-to-br from-red-50 to-red-100 hover:from-red-100 hover:to-red-200 transform hover:-translate-y-1 transition duration-300">
-                <h3 class="text-lg font-bold text-red-700">🚫 Non-Productive</h3>
-                <p class="text-3xl font-extrabold text-red-900 mt-2">${nonProductive}</p>
-            </div>
-            <div class="p-5 rounded-2xl shadow-lg text-center bg-gradient-to-br from-yellow-50 to-yellow-100 hover:from-yellow-100 hover:to-yellow-200 transform hover:-translate-y-1 transition duration-300">
-                <h3 class="text-lg font-bold text-yellow-700">⏳ In Progress</h3>
-                <p class="text-3xl font-extrabold text-yellow-900 mt-2">${progress}</p>
-            </div>
-            <div class="p-5 rounded-2xl shadow-lg text-center bg-gradient-to-br from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 transform hover:-translate-y-1 transition duration-300">
-                <h3 class="text-lg font-bold text-green-700">✅ Completed</h3>
-                <p class="text-3xl font-extrabold text-green-900 mt-2">${completed}</p>
-            </div>
-            <div class="p-5 rounded-2xl shadow-lg text-center bg-gradient-to-br from-purple-50 to-purple-100 hover:from-purple-100 hover:to-purple-200 transform hover:-translate-y-1 transition duration-300">
-                <h3 class="text-lg font-bold text-purple-700">💰 Total Value</h3>
-                <p class="text-3xl font-extrabold text-purple-900 mt-2">${totalAchievedValue.toLocaleString()}</p>
-            </div>
-        </div>
+  // ✅ Corrected Overall % calculation (based on quantities)
+const smartOverall = calculateSmartPerformance();
+document.getElementById("overallBox").lastElementChild.innerText =
+    smartOverall + "% ";
 
-        <!-- Progress Bar -->
-        <div class="mb-6">
-            <h3 class="font-semibold mb-2">📈 Overall Achievement</h3>
-            <div class="w-full bg-gray-200 rounded-full h-6 overflow-hidden">
-                <div class="h-6 text-xs flex items-center justify-center font-bold text-white rounded-full"
-                     style="width:${overallPercent}%; background: linear-gradient(to right, #60a5fa, #16a34a); transition: width 0.6s ease;">
-                    ${overallPercent}%
+
+
+
+    // --- Value Toggle System (Dashboard only) ---
+    const totalValueBox = document.getElementById("totalValueBox").lastElementChild;
+    window.totalValueData = { 
+        achieved: overallAchievedValue,
+        target: overallTargetValue,
+        remaining: overallRemainingValue
+    };
+    if(!window.valueBoxState){ window.valueBoxState = 0; }
+
+    const updateValueBox = ()=>{
+        if(window.valueBoxState===0){
+            totalValueBox.innerText = window.totalValueData.achieved.toLocaleString()+" (Achieved)";
+            totalValueBox.style.color="green";
+        } else if(window.valueBoxState===1){
+            totalValueBox.innerText = window.totalValueData.target.toLocaleString()+" (Target)";
+            totalValueBox.style.color="blue";
+        } else {
+            totalValueBox.innerText = window.totalValueData.remaining.toLocaleString()+" (Remaining)";
+            totalValueBox.style.color="orange";
+        }
+    };
+    updateValueBox();
+
+    const totalValueBoxParent = document.getElementById("totalValueBox");
+    if(totalValueBoxParent){
+        totalValueBoxParent.onclick = ()=>{
+            window.valueBoxState = (window.valueBoxState+1)%3;
+            updateValueBox();
+        };
+    }
+
+    // --- Update Item Filter ---
+    const itemFilter = document.getElementById("itemFilter");
+    if(itemFilter){
+        const currentValue = itemFilter.value;
+// If Non Productive filter → no items should appear  
+if (selectedFilter === "nonProductive") {
+    itemFilter.innerHTML = `<option value="all">📦 All Items</option>`;
+    itemFilter.value = "all";
+    return;
+}
+
+        const sortedItems = Array.from(visibleItems).sort();
+        itemFilter.innerHTML = `<option value="all">📦 All Items</option>` + sortedItems.map(it=>`<option value="${it}">${it}</option>`).join("");
+        if([...sortedItems,"all"].includes(currentValue)) itemFilter.value=currentValue;
+    }
+
+    // --- Breaking News ---
+    const breakingNews = document.getElementById("breakingNews");
+    if(breakingNews){
+        if(zeroAchieveCustomers.length>0){
+            const colors=["text-red-600","text-blue-600","text-green-600","text-purple-600","text-pink-600","text-orange-600"];
+            let index=0;
+            const newsHtml = zeroAchieveCustomers.map(c=>{
+                const color = colors[index%colors.length];
+                index++;
+                return `<span class="${color} mx-2 sm:mx-4 cursor-pointer underline" 
+             onclick="openCustomerPopup('${c.code}')">
+             🚨 ${c.name} [${c.code}]
+        </span>`;
+
+            }).join("");
+            breakingNews.innerHTML=`<marquee behavior="scroll" direction="left" scrollamount="4">${newsHtml}</marquee>`;
+        }else breakingNews.innerHTML='<span class="text-gray-600 flex items-center justify-center h-full">No alerts at this time</span>';
+    }
+}
+
+
+
+// --- Popup function ---
+function showFilteredPopup() {
+    const selectedStatus = document.getElementById("statusFilter").value;
+    const selectedItemValue = document.getElementById("itemFilter").value;
+
+    // --- Compute Top 10 Customers by totalTarget ---
+    let customerTotals = Object.entries(customerTargets).map(([code, cust]) => {
+        let totalTarget = Object.values(cust.items).reduce((a, b) => a + Number(b), 0);
+        return { code, name: cust.name || code, totalTarget };
+    });
+
+    let top10Customers = customerTotals
+        .sort((a, b) => b.totalTarget - a.totalTarget)
+        .slice(0, 10)
+        .map(c => c.code);
+
+    let popupRows = '';
+    const customerShades = ["bg-gray-50", "bg-blue-50", "bg-purple-50", "bg-pink-50", "bg-yellow-50", "bg-teal-50", "bg-orange-50"];
+    let customerIndex = 0;
+
+    // --- Totals ---
+    let totalCustomers = 0;
+    let totalItems = 0;
+    let totalTarget = 0;
+    let totalAchieved = 0;
+    let totalRemaining = 0;
+    let totalValue = 0;
+
+    let popupThead = ""; // dynamic header
+
+    if (selectedStatus === "itemSummary") {
+        // --- Item-based summary for popup ---
+        let itemSummary = {};
+        Object.entries(customerTargets).forEach(([customerCode, customer]) => {
+            Object.entries(customer.items).forEach(([item, target]) => {
+                if (!itemSummary[item]) {
+                    itemSummary[item] = { totalTarget: 0, totalAchieved: 0, totalRemaining: 0, totalValue: 0, customerCount: 0 };
+                }
+                const achieved = invoices
+                    .filter(inv =>
+                        inv.customerCode?.toUpperCase() === customerCode.toUpperCase() &&
+                        inv.item?.toUpperCase() === item.toUpperCase() &&
+                        !isNaN(Number(inv.quantity))
+                    )
+                    .reduce((sum, inv) => sum + Number(inv.quantity), 0);
+
+                const value = invoices
+                    .filter(inv =>
+                        inv.customerCode?.toUpperCase() === customerCode.toUpperCase() &&
+                        inv.item?.toUpperCase() === item.toUpperCase()
+                    )
+                    .reduce((sum, inv) => sum + (Number(inv.quantity || 0) * Number(inv.rate || 0)), 0);
+
+                itemSummary[item].totalTarget += Number(target);
+                itemSummary[item].totalAchieved += achieved;
+                itemSummary[item].totalRemaining += Number(target) - achieved;
+                itemSummary[item].totalValue += value;
+                itemSummary[item].customerCount += 1;
+            });
+        });
+
+        popupThead = `
+            <thead class="bg-gray-100 sticky top-0 z-40">
+                <tr>
+                    <th class="border p-2">Item</th>
+                    <th class="border p-2">Customers</th>
+                    <th class="border p-2">Target</th>
+                    <th class="border p-2">Achieved</th>
+                    <th class="border p-2">Remaining</th>
+                    <th class="border p-2">%</th>
+                    <th class="border p-2">Value</th>
+                </tr>
+            </thead>
+        `;
+
+        Object.entries(itemSummary).forEach(([item, data]) => {
+            if (selectedItemValue !== "all" && selectedItemValue !== item) return;
+
+            const percentage = data.totalTarget > 0 ? ((data.totalAchieved / data.totalTarget) * 100).toFixed(1) : 0;
+            let rowClass = customerShades[customerIndex % customerShades.length];
+            if (data.totalRemaining < 0) {
+                rowClass = "bg-red-500 text-white";
+            } else if (data.totalRemaining === 0 && data.totalAchieved > 0) {
+                rowClass = "bg-green-500 text-white";
+            }
+
+            popupRows += `<tr class="${rowClass} hover:bg-indigo-100 transition text-xs sm:text-sm">
+                <td class="border p-1 sm:p-2">${item}</td>
+                <td class="border p-1 sm:p-2">${data.customerCount}</td>
+                <td class="border p-1 sm:p-2">${data.totalTarget}</td>
+                <td class="border p-1 sm:p-2">${data.totalAchieved}</td>
+                <td class="border p-1 sm:p-2">${data.totalRemaining}</td>
+                <td class="border p-1 sm:p-2 font-bold">${percentage}%</td>
+                <td class="border p-1 sm:p-2 font-bold">${data.totalValue.toLocaleString()}</td>
+            </tr>`;
+
+            totalItems++;
+            totalTarget += data.totalTarget;
+            totalAchieved += data.totalAchieved;
+            totalRemaining += data.totalRemaining;
+            totalValue += data.totalValue;
+            customerIndex++;
+        });
+
+    } else {
+        // --- Existing customer-based popup ---
+        popupThead = `
+            <thead class="bg-gray-100 sticky top-0 z-40">
+                <tr>
+                    <th class="border p-2">City</th>
+                    <th class="border p-2">Customer Code</th>
+                    <th class="border p-2">Name</th>
+                    <th class="border p-2">Item</th>
+                    <th class="border p-2">Target</th>
+                    <th class="border p-2">Achieved</th>
+                    <th class="border p-2">Remaining</th>
+                    <th class="border p-2">%</th>
+                     <th class="border p-2">Value</th>
+                </tr>
+            </thead>
+        `;
+
+        Object.entries(customerTargets).forEach(([customerCode, customer]) => {
+            if (selectedStatus === "top10" && !top10Customers.includes(customerCode)) {
+                return;
+            }
+
+            const customerShade = customerShades[customerIndex % customerShades.length];
+            customerIndex++;
+
+            let customerHasRow = false;
+
+            Object.entries(customer.items).forEach(([item, target]) => {
+                if (selectedItemValue !== "all" && selectedItemValue !== item) return;
+
+                const achieved = invoices
+                    .filter(inv =>
+                        inv.customerCode?.toUpperCase() === customerCode.toUpperCase() &&
+                        inv.item?.toUpperCase() === item.toUpperCase() &&
+                        !isNaN(Number(inv.quantity))
+                    )
+                    .reduce((sum, inv) => sum + Number(inv.quantity), 0);
+
+                const remaining = target - achieved;
+                let statusType = "normal";
+                let rowClass = customerShade;
+
+                if (remaining < 0) {
+                    rowClass = "bg-red-500 text-white";
+                    statusType = "red";
+                } else if (remaining <= 0) {
+                    rowClass = "bg-green-500 text-white";
+                    statusType = "green";
+                }
+
+                // 🚫 Non-Productive Filter → show only customers where achieved = 0
+if (selectedStatus === "nonProductive") {
+    if (achieved > 0) return;  // if any achievement → skip row
+}
+else {
+    // Normal Filters (all, top10, red, green)
+    if (
+        selectedStatus !== "all" &&
+        selectedStatus !== "top10" &&
+        selectedStatus !== statusType
+    ) return;
+}
+
+
+               const value = invoices
+    .filter(inv =>
+        inv.customerCode?.toUpperCase() === customerCode.toUpperCase() &&
+        inv.item?.toUpperCase() === item.toUpperCase()
+    )
+    .reduce((sum, inv) => sum + (Number(inv.quantity || 0) * Number(inv.rate || 0)), 0);
+
+totalValue += value;
+
+popupRows += `<tr class="${rowClass} hover:bg-indigo-100 transition text-xs sm:text-sm">
+    <td class="border p-1 sm:p-2">${customer.city || ''}</td>
+    <td class="border p-1 sm:p-2">${customerCode}</td>
+    <td class="border p-1 sm:p-2">${customer.name || ''}</td>
+    <td class="border p-1 sm:p-2">${item}</td>
+    <td class="border p-1 sm:p-2">${target}</td>
+    <td class="border p-1 sm:p-2">${achieved}</td>
+    <td class="border p-1 sm:p-2">${remaining}</td>
+    <td class="border p-1 sm:p-2 font-bold">${remaining <= 0 ? "100%" : ((achieved/target*100).toFixed(1)+"%")}</td>
+    <td class="border p-1 sm:p-2 font-bold">${value.toLocaleString()}</td>
+</tr>`;
+
+                customerHasRow = true;
+                totalItems++;
+                totalTarget += target;
+                totalAchieved += achieved;
+                totalRemaining += remaining;
+               
+             
+            });
+
+            if (customerHasRow) totalCustomers++;
+        });
+    }
+
+    if (!popupRows) return;
+
+    // --- Summary Footer Row ---
+   const summaryRow = `
+    <tr class="bg-indigo-100 font-bold text-xs sm:text-sm">
+        <td colspan="2" class="border p-2 text-center">TOTAL (${totalCustomers} Customers)</td>
+        <td class="border p-2">${totalItems} Items</td>
+        <td class="border p-2">${totalTarget}</td>
+        <td class="border p-2">${totalAchieved}</td>
+        <td class="border p-2">${totalRemaining}</td>
+        <td class="border p-2">${totalTarget > 0 ? ((totalAchieved/totalTarget*100).toFixed(1)+"%") : "0%"}</td>
+        <td class="border p-2">${totalValue.toLocaleString()}</td>
+    </tr>`;
+
+    let popup = document.getElementById("invoicePopup");
+
+    // Function to attach copy functionality (har baar call karenge)
+    function attachCopyFunctionality() {
+        const copyBtn = document.getElementById("copyTableBtn");
+        if (!copyBtn) return;
+
+        // Remove previous listener if any (prevent duplicate)
+        copyBtn.replaceWith(copyBtn.cloneNode(true));
+        const newBtn = document.getElementById("copyTableBtn");
+
+        newBtn.addEventListener("click", function() {
+            const table = document.getElementById("popupTable");
+            if (!table) {
+                alert("Table not found!");
+                return;
+            }
+
+            let text = "";
+
+            // Header
+            const headers = table.querySelectorAll("thead th");
+            if (headers.length > 0) {
+                text += Array.from(headers)
+                    .map(th => th.innerText.trim().replace(/\s+/g, ' '))
+                    .join("\t") + "\n";
+            }
+
+            // Body rows (including summary)
+            const rows = table.querySelectorAll("tbody tr");
+            rows.forEach(row => {
+                const cells = row.querySelectorAll("td");
+                text += Array.from(cells)
+                    .map(td => td.innerText.trim().replace(/\s+/g, ' '))
+                    .join("\t") + "\n";
+            });
+
+            navigator.clipboard.writeText(text).then(() => {
+                const originalText = newBtn.innerHTML;
+                newBtn.innerHTML = "✅ Copied to Clipboard!";
+                newBtn.disabled = true;
+                newBtn.classList.remove("bg-blue-600", "hover:bg-blue-700");
+                newBtn.classList.add("bg-green-600");
+                
+                setTimeout(() => {
+                    newBtn.innerHTML = originalText;
+                    newBtn.disabled = false;
+                    newBtn.classList.remove("bg-green-600");
+                    newBtn.classList.add("bg-blue-600", "hover:bg-blue-700");
+                }, 2000);
+            }).catch(err => {
+                console.error("Copy failed:", err);
+                alert("Copy failed! Browser may not support or page is not secure (HTTPS needed).");
+            });
+        });
+    }
+
+    if (!popup) {
+        // First time creation
+        popup = document.createElement("div");
+        popup.id = "invoicePopup";
+        popup.className = "fixed inset-0 bg-black bg-opacity-50 flex justify-center items-start pt-2 z-50 hidden";
+        popup.innerHTML = `
+            <div class="bg-white rounded shadow-lg w-full h-full sm:w-[95%] sm:max-w-6xl sm:h-[80vh] flex flex-col overflow-hidden">
+                <div class="overflow-auto p-2 flex-1">
+                    <table id="popupTable" class="w-full border-collapse border text-xs sm:text-sm">
+                        ${popupThead}
+                        <tbody id="popupInvoiceBody">${popupRows}${summaryRow}</tbody>
+                    </table>
+                </div>
+                <div class="p-3 border-t bg-gray-100 flex flex-col sm:flex-row gap-3 justify-between items-center">
+                    <button id="copyTableBtn" class="bg-blue-600 text-white px-5 py-2 rounded hover:bg-blue-700 flex items-center gap-2 font-medium">
+                        📋 Copy Table to Clipboard
+                    </button>
+                    <button id="closePopup" class="bg-red-600 text-white px-5 py-2 rounded hover:bg-red-700">
+                        ✖ Close
+                    </button>
                 </div>
             </div>
-        </div>
+        `;
+        document.body.appendChild(popup);
 
-        <!-- Breaking News -->
-        <div id="breakingNews" class="relative overflow-hidden h-10 font-semibold text-sm rounded-lg shadow-lg mb-6
-                    bg-gradient-to-r from-red-500 via-yellow-400 to-red-500 border border-red-600">
-            ${zeroAchieveItems.length > 0
-                ? `<marquee behavior="scroll" direction="left" scrollamount="6">
-                    ${zeroAchieveItems.map(it => `
-                        <span class="text-white mx-4 bg-red-600 px-2 py-1 rounded-full shadow-md">
-                            🚨 ${it}
-                        </span>`).join("")}
-                  </marquee>`
-                : '<span class="text-gray-600 flex items-center justify-center h-full">No alerts at this time</span>'}
-        </div>
+        // Close button
+        document.getElementById("closePopup").addEventListener("click", () => {
+            popup.classList.add("hidden");
+        });
 
-        <!-- Table -->
-        <div class="resizable-box" id="customerTableBox">
-            <div class="customer-table scrollable-table">
-                <table>
-                    <thead>
-                        <tr>
-                            <th class="border p-2 bg-secondary">Item</th>
-                            <th class="border p-2 bg-secondary">Target</th>
-                            <th class="border p-2 bg-secondary">Achieved</th>
-                            <th class="border p-2 bg-secondary">Remaining</th>
-                            <th class="border p-2 bg-secondary">Achieved Value</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${rowsHtml}
-                    </tbody>
-                    <tfoot>
-                        <tr class="font-extrabold bg-gradient-to-r from-indigo-700 via-blue-700 to-indigo-800 text-white text-lg shadow-inner">
-                            <td class="border-2 border-indigo-900 p-3 text-center">Total</td>
-                            <td class="border-2 border-indigo-900 p-3 text-right">${totalTarget.toLocaleString()}</td>
-                            <td class="border-2 border-indigo-900 p-3 text-right">${totalAchieved.toLocaleString()}</td>
-                            <td class="border-2 border-indigo-900 p-3 text-right">${totalRemaining.toLocaleString()}</td>
-                            <td class="border-2 border-indigo-900 p-3 text-right">${totalAchievedValue.toLocaleString()}</td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-        </div>
-    `;
+        // Attach copy functionality
+        attachCopyFunctionality();
+    } else {
+        // Update existing popup
+        const table = popup.querySelector("#popupTable");
+        if (table) {
+            table.querySelector("thead").outerHTML = popupThead;
+            document.getElementById("popupInvoiceBody").innerHTML = popupRows + summaryRow;
+        }
+        
+        // Re-attach copy functionality (important!)
+        attachCopyFunctionality();
+    }
+
+    popup.classList.remove("hidden");
 }
+
 
 
 
