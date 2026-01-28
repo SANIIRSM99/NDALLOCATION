@@ -1664,18 +1664,35 @@ function renderAllocationTables(customerCode = null) {
 
     // --- Final HTML Output ---
     tablesContainer.innerHTML = `
-        <!-- Header -->
-        <div class="mb-6 text-center p-6 rounded-2xl shadow-lg bg-gradient-to-r from-purple-700 via-purple-800 to-gray-900">
-            <div class="flex justify-between items-center">
-                <p class="text-sm font-bold px-3 py-1 rounded-full text-black" style="background-color:${levelColor}">
-                    ${customerLevel}
-                </p>
-                <h2 class="text-lg font-extrabold text-white drop-shadow-lg flex-grow text-center">📊 Customer Dashboard</h2>
-                <span></span>
-            </div>
-            <p class="text-3xl font-extrabold text-yellow-400 drop-shadow-lg mt-2">${customer.name || 'Unknown Name'}</p>
-            <p class="text-gray-300 text-sm mt-1">${customer.city || 'Unknown City'} • ${customerCode}</p>
-        </div>
+       <div class="mb-6 p-6 rounded-2xl shadow-lg bg-gradient-to-r from-purple-700 via-purple-800 to-gray-900 relative text-center">
+  
+  <!-- Level Badge in Top-Right Corner -->
+  <p class="text-sm font-bold px-3 py-1 rounded-full text-black absolute top-4 right-4"
+     style="background-color: ${levelColor}">
+     ${customerLevel}
+  </p>
+
+  <!-- Dashboard Title -->
+  <h2 class="text-lg font-extrabold text-white drop-shadow-lg">
+    📊 Customer Dashboard
+  </h2>
+
+  <!-- Distributor Name -->
+  <h2 class="text-lg font-extrabold text-green-500 mt-4">
+    NOOR DISTRIBUTOR JNG
+  </h2>
+
+  <!-- Customer Name -->
+  <p class="text-3xl font-extrabold text-yellow-400 drop-shadow-lg mt-4">
+    ${customer.name || 'Unknown Name'}
+  </p>
+
+  <!-- Customer City & Code -->
+  <p class="text-gray-300 text-sm mt-1">
+    ${customer.city || 'Unknown City'} • ${customerCode}
+  </p>
+</div>
+
 
         <!-- KPI Cards -->
         <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
